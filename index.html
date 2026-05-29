@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tracking Constellation - Rocketship Edition</title>
+    <title>Constellation</title>
+
     <style>
         body {
-            background-color: #050508;
             margin: 0;
             overflow: hidden;
+            background: #050508;
             font-family: sans-serif;
             touch-action: none;
         }
+
         canvas {
             display: block;
             cursor: crosshair;
@@ -19,401 +21,592 @@
     </style>
 </head>
 <body>
-    <canvas id="cyberCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById("cyberCanvas");
-        const ctx = canvas.getContext("2d");
 
-        let dpr = window.devicePixelRatio || 1;
-        let width = window.innerWidth;
-        let height = window.innerHeight;
+<canvas id="cyberCanvas"></canvas>
 
-        function resize() {
-            dpr = window.devicePixelRatio || 1;
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            canvas.style.width = width + "px";
-            canvas.style.height = height + "px";
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        }
-        window.addEventListener('resize', resize);
-        resize();
+<script>
+const canvas = document.getElementById("cyberCanvas");
+const ctx = canvas.getContext("2d");
 
-        const sun = {
-            x: width * 0.12,
-            y: height * 0.88,
-            coreRadius: 60,
-            glowRadius: 340
-        };
+let dpr = window.devicePixelRatio || 1;
+let width = window.innerWidth;
+let height = window.innerHeight;
 
-        const mouse = {
-            x: null,
-            y: null,
-            radius: 200,
-            blastX: 0,
-            blastY: 0,
-            shockRadius: 0,
-            isShockwave: false
-        };
+function resize() {
+    dpr = window.devicePixelRatio || 1;
 
-        const MAX_PARTICLES = 150;
-        const particles = [];
+    width = window.innerWidth;
+    height = window.innerHeight;
 
-        window.addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        window.addEventListener('pointerleave', () => { mouse.x = null; mouse.y = null; });
-        window.addEventListener('pointerdown', (e) => {
-            mouse.x = e.clientX; mouse.y = e.clientY;
-            mouse.blastX = e.clientX; mouse.blastY = e.clientY;
-            mouse.isShockwave = true; mouse.shockRadius = 0;
-        });
-        window.addEventListener('pointerup', () => { mouse.x = null; mouse.y = null; });
-        window.addEventListener('pointercancel', () => { mouse.x = null; mouse.y = null; });
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
 
-        function getSunInfluence(x, y) {
-            let dx = x - sun.x;
-            let dy = y - sun.y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-            return Math.max(0, 1 - dist / sun.glowRadius);
-        }
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
 
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
 
-        // --- AMBIENT NODE (PARTICLE) CLASS ---
+window.addEventListener('resize', resize);
+resize();
 
-        class Particle {
-            constructor(initRandomLife = false) {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.size = Math.random() * 3.5 + 1.5;
+const sun = {
+    x: width * 0.12,
+    y: height * 0.88,
+    coreRadius: 60,
+    glowRadius: 340
+};
 
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 1.5 + 0.5;
-                this.speedX = Math.cos(angle) * speed;
-                this.speedY = Math.sin(angle) * speed;
+const mouse = {
+    x: null,
+    y: null,
+    radius: 200,
+    blastX: 0,
+    blastY: 0,
+    shockRadius: 0,
+    isShockwave: false
+};
 
-                this.hue = Math.random() > 0.5 ? 190 : 280;
-                this.fadeSpeed = Math.random() * 0.003 + 0.0015;
+window.addEventListener('pointermove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
 
-                this.life = initRandomLife ? Math.random() : 0;
-                this.maxLife = 1.0;
-                this.isFadingOut = false;
+window.addEventListener('pointerleave', () => {
+    mouse.x = null;
+    mouse.y = null;
+});
+
+window.addEventListener('pointerdown', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+
+    mouse.blastX = e.clientX;
+    mouse.blastY = e.clientY;
+
+    mouse.isShockwave = true;
+    mouse.shockRadius = 0;
+});
+
+window.addEventListener('pointerup', () => {
+    mouse.x = null;
+    mouse.y = null;
+});
+
+window.addEventListener('pointercancel', () => {
+    mouse.x = null;
+    mouse.y = null;
+});
+
+function getSunInfluence(x, y) {
+    const dx = x - sun.x;
+    const dy = y - sun.y;
+
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    return Math.max(0, 1 - dist / sun.glowRadius);
+}
+
+const MAX_PARTICLES = 150;
+const particles = [];
+
+class Particle {
+    constructor(initRandomLife = false) {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+
+        this.size = Math.random() * 3.5 + 1.5;
+
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 1.5 + 0.5;
+
+        this.speedX = Math.cos(angle) * speed;
+        this.speedY = Math.sin(angle) * speed;
+
+        this.hue = Math.random() > 0.5 ? 190 : 280;
+
+        this.fadeSpeed = Math.random() * 0.003 + 0.0015;
+
+        this.life = initRandomLife ? Math.random() : 0;
+        this.maxLife = 1;
+
+        this.isFadingOut = false;
+    }
+
+    update() {
+
+        if (mouse.x !== null && mouse.y !== null) {
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < mouse.radius && distance > 0.001) {
+                const force = (mouse.radius - distance) / mouse.radius;
+
+                this.speedX += (dx / distance) * force * 0.3;
+                this.speedY += (dy / distance) * force * 0.3;
             }
+        }
 
-            update() {
-                // 1. Interactive Pointer Physics
-                if (mouse.x !== null && mouse.y !== null) {
-                    let dx = mouse.x - this.x;
-                    let dy = mouse.y - this.y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
+        if (mouse.isShockwave) {
+            const dx = mouse.blastX - this.x;
+            const dy = mouse.blastY - this.y;
 
-                    // Gravitational Tracking
-                    if (distance < mouse.radius) {
-                        let force = (mouse.radius - distance) / mouse.radius;
-                        this.speedX += (dx / distance) * force * 0.3;
-                        this.speedY += (dy / distance) * force * 0.3;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const waveThickness = 100;
+
+            if (
+                dist > mouse.shockRadius - waveThickness &&
+                dist < mouse.shockRadius &&
+                dist > 0.001
+            ) {
+                const force =
+                    (waveThickness - (mouse.shockRadius - dist)) /
+                    waveThickness;
+
+                this.speedX -= (dx / dist) * force * 14;
+                this.speedY -= (dy / dist) * force * 14;
+            }
+        }
+
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        const friction = mouse.isShockwave ? 0.97 : 0.95;
+
+        this.speedX *= friction;
+        this.speedY *= friction;
+
+        if (
+            Math.abs(this.speedX) < 0.2 &&
+            Math.abs(this.speedY) < 0.2
+        ) {
+            this.speedX = (Math.random() - 0.5) * 1.5;
+            this.speedY = (Math.random() - 0.5) * 1.5;
+        }
+
+        if (this.x < 0) {
+            this.x = 0;
+            this.speedX *= -1;
+        }
+        else if (this.x > width) {
+            this.x = width;
+            this.speedX *= -1;
+        }
+
+        if (this.y < 0) {
+            this.y = 0;
+            this.speedY *= -1;
+        }
+        else if (this.y > height) {
+            this.y = height;
+            this.speedY *= -1;
+        }
+
+        if (!this.isFadingOut) {
+            this.life += this.fadeSpeed;
+
+            if (this.life >= this.maxLife) {
+                this.isFadingOut = true;
+            }
+        }
+        else {
+            this.life -= this.fadeSpeed;
+        }
+    }
+
+    draw() {
+        const sunInfluence = getSunInfluence(this.x, this.y);
+
+        const hue = this.hue + (sunInfluence * (35 - this.hue + 30));
+        const lightness = 65 + sunInfluence * 15;
+
+        ctx.beginPath();
+
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+
+        ctx.fillStyle = `hsla(${hue},100%,${lightness}%,${Math.max(0, this.life)})`;
+
+        ctx.fill();
+    }
+}
+
+class RocketShip {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.fromLeft = Math.random() > 0.5;
+
+        this.x = this.fromLeft ? -50 : width + 50;
+        this.y = Math.random() * (height * 0.6) + (height * 0.2);
+
+        this.speedX = this.fromLeft
+            ? Math.random() * 3 + 4
+            : -(Math.random() * 3 + 4);
+
+        this.speedY = (Math.random() - 0.5) * 1.2;
+
+        this.angle = Math.atan2(this.speedY, this.speedX);
+
+        this.isActive = true;
+
+        this.exhaustParticles = [];
+
+        this.boostTimer = 0;
+        this.turnBias = (Math.random() - 0.5) * 0.02;
+        this.presenceRadius = 180;
+        this.pulse = 0;
+    }
+
+    update() {
+        if (!this.isActive) return;
+
+        this.speedY += this.turnBias;
+
+        const sunPullY = (sun.y - this.y) * 0.00008;
+        this.speedY += sunPullY;
+
+        if (mouse.isShockwave) {
+            const dx = mouse.blastX - this.x;
+            const dy = mouse.blastY - this.y;
+
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 300 && dist > 0.001) {
+                this.speedX -= (dx / dist) * 0.08;
+                this.speedY -= (dy / dist) * 0.08;
+            }
+        }
+
+        if (Math.random() < 0.002 && this.boostTimer <= 0) {
+            this.boostTimer = 40;
+        }
+
+        if (this.boostTimer > 0) {
+            this.boostTimer--;
+            this.speedX *= 1.01;
+            this.speedY *= 1.01;
+        }
+
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        this.angle = Math.atan2(this.speedY, this.speedX);
+
+        this.pulse += 0.08;
+
+        if (Math.random() > 0.25) {
+            this.exhaustParticles.push({
+                x: this.x - Math.cos(this.angle) * 15,
+                y: this.y - Math.sin(this.angle) * 15,
+                size: Math.random() * 3 + 1,
+                life: 1,
+                fade: Math.random() * 0.04 + 0.02
+            });
+        }
+
+        for (let i = this.exhaustParticles.length - 1; i >= 0; i--) {
+            const p = this.exhaustParticles[i];
+
+            p.life -= p.fade;
+            p.y += (Math.random() - 0.5) * 0.4;
+
+            if (p.life <= 0) {
+                this.exhaustParticles.splice(i, 1);
+            }
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+            const dx = this.x - particles[i].x;
+            const dy = this.y - particles[i].y;
+
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.presenceRadius && dist > 0.001) {
+                const influence =
+                    (this.presenceRadius - dist) /
+                    this.presenceRadius;
+
+                particles[i].speedX +=
+                    this.speedX * influence * 0.025;
+
+                particles[i].speedY +=
+                    this.speedY * influence * 0.025;
+
+                particles[i].speedX +=
+                    Math.cos(this.angle) * influence * 0.08;
+
+                particles[i].speedY +=
+                    Math.sin(this.angle) * influence * 0.08;
+
+                particles[i].life = Math.min(
+                    1,
+                    particles[i].life + 0.01
+                );
+            }
+        }
+
+        if (
+            (this.fromLeft && this.x > width + 120) ||
+            (!this.fromLeft && this.x < -120)
+        ) {
+            this.isActive = false;
+        }
+    }
+
+    draw() {
+        ctx.save();
+
+        for (const p of this.exhaustParticles) {
+            ctx.beginPath();
+
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+
+            ctx.fillStyle = `rgba(140,255,255,${p.life * 0.5})`;
+
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        if (!this.isActive) return;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            this.x,
+            this.y,
+            this.presenceRadius * (0.7 + Math.sin(this.pulse) * 0.04),
+            0,
+            Math.PI * 2
+        );
+
+        ctx.strokeStyle = 'rgba(120,255,255,0.025)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ffffff';
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#00ffff';
+        ctx.fillStyle = '#050508';
+
+        ctx.beginPath();
+        ctx.moveTo(18, 0);
+        ctx.lineTo(-10, -6);
+        ctx.lineTo(-16, -12);
+        ctx.lineTo(-12, -4);
+        ctx.lineTo(-12, 4);
+        ctx.lineTo(-16, 12);
+        ctx.lineTo(-10, 6);
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+
+        if (this.boostTimer > 0) {
+            ctx.beginPath();
+            ctx.moveTo(-12, 0);
+            ctx.lineTo(-28 - Math.random() * 10, -4);
+            ctx.lineTo(-28 - Math.random() * 10, 4);
+            ctx.closePath();
+
+            ctx.fillStyle = 'rgba(120,255,255,0.75)';
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+}
+
+function drawLines() {
+    ctx.lineWidth = 1.2;
+
+    const maxDist = 150;
+    const maxDistSq = maxDist * maxDist;
+
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < maxDistSq) {
+                const distance = Math.sqrt(distSq);
+
+                const opacity =
+                    (1 - (distance / maxDist)) *
+                    Math.min(particles[i].life, particles[j].life) *
+                    0.25;
+
+                const midX = (particles[i].x + particles[j].x) / 2;
+                const midY = (particles[i].y + particles[j].y) / 2;
+
+                const sunInf = getSunInfluence(midX, midY);
+
+                const midHue =
+                    (particles[i].hue + particles[j].hue) / 2;
+
+                const blendedHue =
+                    midHue + sunInf * (40 - midHue + 20);
+
+                let shipInfluence = 0;
+
+                if (rocket.isActive) {
+                    const rdx = rocket.x - midX;
+                    const rdy = rocket.y - midY;
+
+                    const rDist = Math.sqrt(rdx * rdx + rdy * rdy);
+
+                    if (rDist < rocket.presenceRadius) {
+                        shipInfluence =
+                            (rocket.presenceRadius - rDist) /
+                            rocket.presenceRadius;
                     }
                 }
 
-                // 2. Isolated Shockwave Repulsion (Uses fixed blast coordinates)
-                if (mouse.isShockwave) {
-                    let bdx = mouse.blastX - this.x;
-                    let bdy = mouse.blastY - this.y;
-                    let bDistance = Math.sqrt(bdx * bdx + bdy * bdy);
-                    let waveThickness = 100;
+                ctx.strokeStyle = `hsla(
+                    ${blendedHue},
+                    100%,
+                    ${65 + shipInfluence * 20}%,
+                    ${opacity + shipInfluence * 0.22}
+                )`;
 
-                    if (bDistance > mouse.shockRadius - waveThickness && bDistance < mouse.shockRadius) {
-                        let force = (waveThickness - (mouse.shockRadius - bDistance)) / waveThickness;
-                        this.speedX -= (bdx / bDistance) * force * 14;
-                        this.speedY -= (bdy / bDistance) * force * 14;
-                    }
-                }
-
-                this.x += this.speedX;
-                this.y += this.speedY;
-
-                const friction = mouse.isShockwave ? 0.97 : 0.95;
-                this.speedX *= friction;
-                this.speedY *= friction;
-
-                // Ambient self-propulsion engine fallback
-                if (Math.abs(this.speedX) < 0.2 && Math.abs(this.speedY) < 0.2) {
-                    this.speedX = (Math.random() - 0.5) * 1.5;
-                    this.speedY = (Math.random() - 0.5) * 1.5;
-                }
-
-                // Boundary collision handling
-                if (this.x < 0) { this.x = 0; this.speedX *= -1; }
-                else if (this.x > width) { this.x = width; this.speedX *= -1; }
-
-                if (this.y < 0) { this.y = 0; this.speedY *= -1; }
-                else if (this.y > height) { this.y = height; this.speedY *= -1; }
-
-                // Alpha lifecycle management
-                if (!this.isFadingOut) {
-                    this.life += this.fadeSpeed;
-                    if (this.life >= this.maxLife) this.isFadingOut = true;
-                } else {
-                    this.life -= this.fadeSpeed;
-                }
-            }
-
-            draw() {
-                let sunInfluence = getSunInfluence(this.x, this.y);
-                let hue = this.hue + (sunInfluence * (35 - this.hue + 30));
-                let lightness = 65 + sunInfluence * 15;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${hue}, 100%, ${lightness}%, ${Math.max(0, this.life)})`;
-                ctx.fill();
-            }
-        }
-
-
-        // --- ROCKET SHIP CLASS ---
-
-        class RocketShip {
-            constructor() {
-                this.reset();
-            }
-
-            reset() {
-                this.fromLeft = Math.random() > 0.5;
-                this.x = this.fromLeft ? -50 : width + 50;
-                this.y = Math.random() * (height * 0.6) + (height * 0.2);
-
-                this.speedX = this.fromLeft ? Math.random() * 3 + 4 : -(Math.random() * 3 + 4);
-                this.speedY = (Math.random() - 0.5) * 1.2;
-                this.angle = Math.atan2(this.speedY, this.speedX);
-
-                this.isActive = true;
-                this.exhaustParticles = [];
-            }
-
-            update() {
-                if (!this.isActive) return;
-
-                this.x += this.speedX;
-                this.y += this.speedY;
-
-                // Generate engine exhaust trace
-                if (Math.random() > 0.3) {
-                    this.exhaustParticles.push({
-                        x: this.x - Math.cos(this.angle) * 15,
-                        y: this.y - Math.sin(this.angle) * 15,
-                        size: Math.random() * 2 + 1,
-                        life: 1.0,
-                        fade: Math.random() * 0.04 + 0.02
-                    });
-                }
-
-                // Exhaust lifespan processing
-                for (let i = this.exhaustParticles.length - 1; i >= 0; i--) {
-                    let p = this.exhaustParticles[i];
-                    p.life -= p.fade;
-                    p.y += (Math.random() - 0.5) * 0.4;
-                    if (p.life <= 0) this.exhaustParticles.splice(i, 1);
-                }
-
-                // Kinetic wake disruption field
-                for (let i = 0; i < particles.length; i++) {
-                    let dx = this.x - particles[i].x;
-                    let dy = this.y - particles[i].y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < 80) {
-                        let pullForce = (80 - dist) / 80;
-                        particles[i].speedX += this.speedX * pullForce * 0.02;
-                        particles[i].speedY += this.speedY * pullForce * 0.02;
-                    }
-                }
-
-                // Decommission tracker
-                if ((this.fromLeft && this.x > width + 100) || (!this.fromLeft && this.x < -100)) {
-                    this.isActive = false;
-                }
-            }
-
-            draw() {
-                // 1. Process Trail Render
-                ctx.save();
-                for (let p of this.exhaustParticles) {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(140, 255, 255, ${p.life * 0.4})`;
-                    ctx.fill();
-                }
-                ctx.restore();
-
-                if (!this.isActive) return;
-
-                // 2. Render Vector Ship Structure
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = '#ffffff';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#00ffff';
-                ctx.fillStyle = '#050508';
-
-                ctx.beginPath();
-                ctx.moveTo(18, 0);       // Nose cone apex
-                ctx.lineTo(-10, -6);     // Upper port frame
-                ctx.lineTo(-16, -12);    // Port stabilizer fin tip
-                ctx.lineTo(-12, -4);     // Core thruster bracket port
-                ctx.lineTo(-12, 4);      // Core thruster bracket starboard
-                ctx.lineTo(-16, 12);     // Starboard stabilizer fin tip
-                ctx.lineTo(-10, 6);      // Lower starboard frame
-                ctx.closePath();
-
-                ctx.fill();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
                 ctx.stroke();
-                ctx.restore();
             }
         }
+    }
+}
 
+function drawSun() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
 
-        // --- PLEXUS CONSTELLATION RENDERER ---
+    // Outermost atmospheric haze
+    let atmos = ctx.createRadialGradient(
+        sun.x, sun.y, sun.coreRadius * 1.5,
+        sun.x, sun.y, sun.glowRadius
+    );
+    atmos.addColorStop(0, 'rgba(255, 120, 20, 0.06)');
+    atmos.addColorStop(0.5, 'rgba(255, 80, 10, 0.03)');
+    atmos.addColorStop(1, 'rgba(255, 40, 0, 0)');
+    ctx.fillStyle = atmos;
+    ctx.beginPath();
+    ctx.arc(sun.x, sun.y, sun.glowRadius, 0, Math.PI * 2);
+    ctx.fill();
 
-        function drawLines() {
-            ctx.lineWidth = 1.2;
-            const maxDist = 150;
-            const maxDistSq = maxDist * maxDist;
+    // Mid glow
+    let midGlow = ctx.createRadialGradient(
+        sun.x, sun.y, 0,
+        sun.x, sun.y, sun.coreRadius * 3
+    );
+    midGlow.addColorStop(0, 'rgba(255, 200, 80, 0.35)');
+    midGlow.addColorStop(0.4, 'rgba(255, 120, 20, 0.18)');
+    midGlow.addColorStop(1, 'rgba(255, 60, 0, 0)');
+    ctx.fillStyle = midGlow;
+    ctx.beginPath();
+    ctx.arc(sun.x, sun.y, sun.coreRadius * 3, 0, Math.PI * 2);
+    ctx.fill();
 
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    let dx = particles[i].x - particles[j].x;
-                    let dy = particles[i].y - particles[j].y;
-                    let distSq = dx * dx + dy * dy;
+    // Core
+    let core = ctx.createRadialGradient(
+        sun.x, sun.y, 0,
+        sun.x, sun.y, sun.coreRadius
+    );
+    core.addColorStop(0, 'rgba(255, 255, 220, 0.95)');
+    core.addColorStop(0.3, 'rgba(255, 220, 100, 0.85)');
+    core.addColorStop(0.7, 'rgba(255, 140, 30, 0.6)');
+    core.addColorStop(1, 'rgba(255, 80, 0, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(sun.x, sun.y, sun.coreRadius, 0, Math.PI * 2);
+    ctx.fill();
 
-                    if (distSq < maxDistSq) {
-                        let distance = Math.sqrt(distSq);
-                        let opacity = (1 - (distance / maxDist)) * Math.min(particles[i].life, particles[j].life) * 0.25;
+    ctx.restore();
+}
 
-                        let midX = (particles[i].x + particles[j].x) / 2;
-                        let midY = (particles[i].y + particles[j].y) / 2;
-                        let sunInf = getSunInfluence(midX, midY);
-                        let midHue = (particles[i].hue + particles[j].hue) / 2;
-                        let blendedHue = midHue + sunInf * (40 - midHue + 20);
+const rocket = new RocketShip();
+rocket.isActive = false;
 
-                        ctx.strokeStyle = `hsla(${blendedHue}, 100%, 65%, ${opacity})`;
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
-                }
-            }
+for (let i = 0; i < MAX_PARTICLES; i++) {
+    particles.push(new Particle(true));
+}
+
+function animate() {
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.fillStyle = 'rgba(5,5,8,0.12)';
+    ctx.fillRect(0, 0, width, height);
+
+    drawSun();
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    if (mouse.isShockwave) {
+        mouse.shockRadius += 24;
+
+        ctx.beginPath();
+        ctx.arc(
+            mouse.blastX,
+            mouse.blastY,
+            mouse.shockRadius,
+            0,
+            Math.PI * 2
+        );
+
+        const ringOpacity = Math.max(0, 1 - (mouse.shockRadius / 600));
+
+        ctx.strokeStyle = `rgba(190,255,255,${ringOpacity * 0.15})`;
+
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        if (mouse.shockRadius > 600) {
+            mouse.isShockwave = false;
         }
+    }
 
+    while (particles.length < MAX_PARTICLES) {
+        particles.push(new Particle(false));
+    }
 
-        // --- SUN RENDERER ---
+    if (!rocket.isActive && Math.random() < 0.0035) {
+        rocket.reset();
+    }
 
-        function drawSun() {
-            ctx.save();
-            ctx.globalCompositeOperation = 'source-over';
+    drawLines();
 
-            // Outermost atmospheric haze
-            let atmos = ctx.createRadialGradient(sun.x, sun.y, sun.coreRadius * 1.5, sun.x, sun.y, sun.glowRadius);
-            atmos.addColorStop(0, 'rgba(255, 120, 20, 0.06)');
-            atmos.addColorStop(0.5, 'rgba(255, 80, 10, 0.03)');
-            atmos.addColorStop(1, 'rgba(255, 40, 0, 0)');
-            ctx.fillStyle = atmos;
-            ctx.beginPath();
-            ctx.arc(sun.x, sun.y, sun.glowRadius, 0, Math.PI * 2);
-            ctx.fill();
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
 
-            // Mid glow
-            let midGlow = ctx.createRadialGradient(sun.x, sun.y, 0, sun.x, sun.y, sun.coreRadius * 3);
-            midGlow.addColorStop(0, 'rgba(255, 200, 80, 0.35)');
-            midGlow.addColorStop(0.4, 'rgba(255, 120, 20, 0.18)');
-            midGlow.addColorStop(1, 'rgba(255, 60, 0, 0)');
-            ctx.fillStyle = midGlow;
-            ctx.beginPath();
-            ctx.arc(sun.x, sun.y, sun.coreRadius * 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Core
-            let core = ctx.createRadialGradient(sun.x, sun.y, 0, sun.x, sun.y, sun.coreRadius);
-            core.addColorStop(0, 'rgba(255, 255, 220, 0.95)');
-            core.addColorStop(0.3, 'rgba(255, 220, 100, 0.85)');
-            core.addColorStop(0.7, 'rgba(255, 140, 30, 0.6)');
-            core.addColorStop(1, 'rgba(255, 80, 0, 0)');
-            ctx.fillStyle = core;
-            ctx.beginPath();
-            ctx.arc(sun.x, sun.y, sun.coreRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
+        if (particles[i].isFadingOut && particles[i].life <= 0) {
+            particles.splice(i, 1);
         }
-
-
-        // --- ENGINE INITIALIZATION ---
-
-        const rocket = new RocketShip();
-        rocket.isActive = false; // Intentionally dormant initially
-
-        for (let i = 0; i < MAX_PARTICLES; i++) {
-            particles.push(new Particle(true));
+        else {
+            particles[i].draw();
         }
+    }
 
-        function animate() {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = 'rgba(5, 5, 8, 0.12)';
-            ctx.fillRect(0, 0, width, height);
+    rocket.update();
+    rocket.draw();
 
-            drawSun();
+    requestAnimationFrame(animate);
+}
 
-            ctx.globalCompositeOperation = 'lighter';
+animate();
 
-            // Shockwave expansion tracker
-            if (mouse.isShockwave) {
-                mouse.shockRadius += 24;
-
-                ctx.beginPath();
-                ctx.arc(mouse.blastX, mouse.blastY, mouse.shockRadius, 0, Math.PI * 2);
-                let ringOpacity = Math.max(0, 1 - (mouse.shockRadius / 600));
-                ctx.strokeStyle = `rgba(190, 255, 255, ${ringOpacity * 0.15})`;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                if (mouse.shockRadius > 600) {
-                    mouse.isShockwave = false;
-                }
-            }
-
-            // Continuous environment populator
-            while (particles.length < MAX_PARTICLES) {
-                particles.push(new Particle(false));
-            }
-
-            // Random rocket scheduler (runs check if ship state is inert)
-            if (!rocket.isActive && Math.random() < 0.0025) {
-                rocket.reset();
-            }
-
-            drawLines();
-
-            // Run system state corrections for nodes
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update();
-                if (particles[i].isFadingOut && particles[i].life <= 0) {
-                    particles.splice(i, 1);
-                } else {
-                    particles[i].draw();
-                }
-            }
-
-            // Ship rendering loop
-            rocket.update();
-            rocket.draw();
-
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-    </script>
+</script>
 </body>
 </html>
