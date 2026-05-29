@@ -44,7 +44,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Added shockwave trigger states
         const mouse = { 
             x: null, 
             y: null, 
@@ -54,7 +53,7 @@
         };
         
         const particles = [];
-        const MAX_PARTICLES = 140; 
+        const MAX_PARTICLES = 130; // Slightly optimized for mobile web views
 
         window.addEventListener('pointermove', (e) => {
             mouse.x = e.clientX;
@@ -66,16 +65,15 @@
             mouse.y = null;
         });
 
-        // Trigger the shockwave on click/tap
         window.addEventListener('pointerdown', (e) => {
             if (mouse.x !== null && mouse.y !== null) {
                 mouse.isShockwave = true;
-                mouse.shockRadius = 0; // Reset blast wave radius
+                mouse.shockRadius = 0; 
             }
         });
 
         class Particle {
-            constructor() {
+            constructor(initRandomLife = false) {
                 this.x = Math.random() * width;
                 this.y = Math.random() * height;
                 this.size = Math.random() * 3.5 + 1.5; 
@@ -86,9 +84,11 @@
                 this.speedY = Math.sin(angle) * speed;
                 
                 this.hue = Math.random() > 0.5 ? 190 : 280; 
-                this.life = 0;
-                this.maxLife = 1.0;
                 this.fadeSpeed = Math.random() * 0.003 + 0.0015;
+                
+                // Smooth birth fix: prevent instant flash on spawn
+                this.life = initRandomLife ? Math.random() : 0;
+                this.maxLife = 1.0;
                 this.isFadingOut = false;
             }
 
@@ -100,18 +100,17 @@
                     
                     // --- SHOCKWAVE PHYSICS ---
                     if (mouse.isShockwave) {
-                        // Blast ring thickness boundary
                         let waveThickness = 100; 
                         if (distance > mouse.shockRadius - waveThickness && distance < mouse.shockRadius) {
-                            // Reverse force calculation: repel violently away from cursor
                             let force = (waveThickness - (mouse.shockRadius - distance)) / waveThickness;
-                            // Negative multiplier blasts them OUTWARD
-                            this.speedX -= (dx / distance) * force * 12; 
-                            this.speedY -= (dy / distance) * force * 12;
+                            this.speedX -= (dx / distance) * force * 14; // Slightly elevated kinetic kick
+                            this.speedY -= (dy / distance) * force * 14;
                         }
                     } 
-                    // --- NORMAL TRACKING PHYSICS ---
-                    else if (distance < mouse.radius) {
+                    
+                    // --- TRACKING PHYSICS ---
+                    // Fixed: Now runs concurrently if outside the shockwave perimeter
+                    if (distance < mouse.radius) {
                         let force = (mouse.radius - distance) / mouse.radius;
                         this.speedX += (dx / distance) * force * 0.3;
                         this.speedY += (dy / distance) * force * 0.3;
@@ -121,22 +120,24 @@
                 this.x += this.speedX;
                 this.y += this.speedY;
 
-                // Slightly lower friction during shockwave to let the blast travel further
                 const friction = mouse.isShockwave ? 0.97 : 0.95;
                 this.speedX *= friction;
                 this.speedY *= friction;
 
+                // Keep ambient movement alive
                 if (Math.abs(this.speedX) < 0.2 && Math.abs(this.speedY) < 0.2) {
                     this.speedX = (Math.random() - 0.5) * 1.5;
                     this.speedY = (Math.random() - 0.5) * 1.5;
                 }
 
+                // Bounce walls
                 if (this.x < 0) { this.x = 0; this.speedX *= -1; }
                 else if (this.x > width) { this.x = width; this.speedX *= -1; }
 
                 if (this.y < 0) { this.y = 0; this.speedY *= -1; }
                 else if (this.y > height) { this.y = height; this.speedY *= -1; }
 
+                // Life cycle update
                 if (!this.isFadingOut) {
                     this.life += this.fadeSpeed;
                     if (this.life >= this.maxLife) this.isFadingOut = true;
@@ -148,7 +149,7 @@
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${this.hue}, 100%, 65%, ${this.life})`;
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 65%, ${Math.max(0, this.life)})`;
                 ctx.fill();
             }
         }
@@ -180,6 +181,11 @@
             }
         }
 
+        // Initialize original population smoothly distributed across age brackets
+        for (let i = 0; i < MAX_PARTICLES; i++) {
+            particles.push(new Particle(true));
+        }
+
         function animate() {
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = 'rgba(5, 5, 8, 0.12)'; 
@@ -187,26 +193,24 @@
 
             ctx.globalCompositeOperation = 'lighter';
 
-            // Expands the shockwave ring over time
             if (mouse.isShockwave) {
-                mouse.shockRadius += 25; // Speed of the explosion ring expansion
+                mouse.shockRadius += 24; 
                 
-                // Draw a very subtle digital expansion ring
+                // Fixed: mouse.scatterRadius converted to mouse.shockRadius
                 ctx.beginPath();
-                ctx.arc(mouse.x, mouse.y, mouse.scatterRadius, 0, Math.PI * 2);
+                ctx.arc(mouse.x, mouse.y, mouse.shockRadius, 0, Math.PI * 2);
                 let ringOpacity = Math.max(0, 1 - (mouse.shockRadius / 600));
-                ctx.strokeStyle = `rgba(190, 255, 255, ${ringOpacity * 0.08})`;
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = `rgba(190, 255, 255, ${ringOpacity * 0.15})`; // Slightly more visible
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Stop shockwave once it clears the max radius limit
                 if (mouse.shockRadius > 600) {
                     mouse.isShockwave = false;
                 }
             }
 
             while (particles.length < MAX_PARTICLES) {
-                particles.push(new Particle());
+                particles.push(new Particle(false));
             }
 
             drawLines();
