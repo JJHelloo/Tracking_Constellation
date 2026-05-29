@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation</title>
+    <title> Constellation</title>
 
     <style>
         body {
@@ -107,7 +107,9 @@ function getSunInfluence(x, y) {
     return Math.max(0, 1 - dist / sun.glowRadius);
 }
 
-const MAX_PARTICLES = 150;
+// Detect if it's a small screen or touch device, and adjust density
+const isMobile = window.innerWidth < 768 || ('ontouchstart' in window);
+const MAX_PARTICLES = isMobile ? 120 : 280;
 const particles = [];
 
 class Particle {
