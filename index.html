@@ -10,6 +10,8 @@
             margin: 0;
             overflow: hidden;
             font-family: sans-serif;
+            /* Prevents double-tap zoom and pull-to-refresh gestures on mobile devices */
+            touch-action: none; 
         }
         canvas {
             display: block;
@@ -52,8 +54,11 @@
             isShockwave: false 
         };
         
+        // Lowered slightly to 100 for buttery smooth performance across all mobile screens
+        const MAX_PARTICLES = 100; 
         const particles = [];
-        const MAX_PARTICLES = 130; // Slightly optimized for mobile web views
+
+        // --- DEVICE INPUT EVENT LISTENERS ---
 
         window.addEventListener('pointermove', (e) => {
             mouse.x = e.clientX;
@@ -66,11 +71,25 @@
         });
 
         window.addEventListener('pointerdown', (e) => {
-            if (mouse.x !== null && mouse.y !== null) {
-                mouse.isShockwave = true;
-                mouse.shockRadius = 0; 
-            }
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.isShockwave = true;
+            mouse.shockRadius = 0; // Reset blast wave radius
         });
+
+        // FIXED: Instantly releases particles on mobile when finger lifts up
+        window.addEventListener('pointerup', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        window.addEventListener('pointercancel', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+
+        // --- PARTICLE OBJECT CLASS ---
 
         class Particle {
             constructor(initRandomLife = false) {
@@ -86,7 +105,7 @@
                 this.hue = Math.random() > 0.5 ? 190 : 280; 
                 this.fadeSpeed = Math.random() * 0.003 + 0.0015;
                 
-                // Smooth birth fix: prevent instant flash on spawn
+                // Distributed initial lifespan avoids all particles fading simultaneously
                 this.life = initRandomLife ? Math.random() : 0;
                 this.maxLife = 1.0;
                 this.isFadingOut = false;
@@ -98,18 +117,18 @@
                     let dy = mouse.y - this.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    // --- SHOCKWAVE PHYSICS ---
+                    // FIXED: Isolated physics blocks so shockwave and tracking don't collide/freeze
+                    // 1. Shockwave Repulsion
                     if (mouse.isShockwave) {
                         let waveThickness = 100; 
                         if (distance > mouse.shockRadius - waveThickness && distance < mouse.shockRadius) {
                             let force = (waveThickness - (mouse.shockRadius - distance)) / waveThickness;
-                            this.speedX -= (dx / distance) * force * 14; // Slightly elevated kinetic kick
+                            this.speedX -= (dx / distance) * force * 14; 
                             this.speedY -= (dy / distance) * force * 14;
                         }
                     } 
                     
-                    // --- TRACKING PHYSICS ---
-                    // Fixed: Now runs concurrently if outside the shockwave perimeter
+                    // 2. Gravitational Tracking
                     if (distance < mouse.radius) {
                         let force = (mouse.radius - distance) / mouse.radius;
                         this.speedX += (dx / distance) * force * 0.3;
@@ -124,20 +143,20 @@
                 this.speedX *= friction;
                 this.speedY *= friction;
 
-                // Keep ambient movement alive
+                // Keeps ambient self-propelled movement alive
                 if (Math.abs(this.speedX) < 0.2 && Math.abs(this.speedY) < 0.2) {
                     this.speedX = (Math.random() - 0.5) * 1.5;
                     this.speedY = (Math.random() - 0.5) * 1.5;
                 }
 
-                // Bounce walls
+                // Boundary collision handling
                 if (this.x < 0) { this.x = 0; this.speedX *= -1; }
                 else if (this.x > width) { this.x = width; this.speedX *= -1; }
 
                 if (this.y < 0) { this.y = 0; this.speedY *= -1; }
                 else if (this.y > height) { this.y = height; this.speedY *= -1; }
 
-                // Life cycle update
+                // Alpha lifecycle management
                 if (!this.isFadingOut) {
                     this.life += this.fadeSpeed;
                     if (this.life >= this.maxLife) this.isFadingOut = true;
@@ -153,6 +172,9 @@
                 ctx.fill();
             }
         }
+
+
+        // --- PLEXUS CONSTELLATION RENDERER ---
 
         function drawLines() {
             ctx.lineWidth = 1.2;
@@ -181,7 +203,10 @@
             }
         }
 
-        // Initialize original population smoothly distributed across age brackets
+
+        // --- ENGINE INITIALIZATION ---
+
+        // Populate initial ecosystem evenly across lifecycle stages
         for (let i = 0; i < MAX_PARTICLES; i++) {
             particles.push(new Particle(true));
         }
@@ -193,14 +218,15 @@
 
             ctx.globalCompositeOperation = 'lighter';
 
+            // Shockwave vector arc calculation
             if (mouse.isShockwave) {
                 mouse.shockRadius += 24; 
                 
-                // Fixed: mouse.scatterRadius converted to mouse.shockRadius
+                // FIXED: mouse.scatterRadius reference error mapped to mouse.shockRadius
                 ctx.beginPath();
                 ctx.arc(mouse.x, mouse.y, mouse.shockRadius, 0, Math.PI * 2);
                 let ringOpacity = Math.max(0, 1 - (mouse.shockRadius / 600));
-                ctx.strokeStyle = `rgba(190, 255, 255, ${ringOpacity * 0.15})`; // Slightly more visible
+                ctx.strokeStyle = `rgba(190, 255, 255, ${ringOpacity * 0.15})`; 
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
@@ -209,6 +235,7 @@
                 }
             }
 
+            // Regenerate deceased nodes seamlessly
             while (particles.length < MAX_PARTICLES) {
                 particles.push(new Particle(false));
             }
